@@ -1,7 +1,6 @@
 package main
 
 import (
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -9,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 
-	_ "github.com/mattn/go-sqlite3"
 	"github.com/pquerna/otp/totp"
 	"github.com/skip2/go-qrcode"
 )
@@ -21,10 +19,7 @@ type User struct {
 
 const dataDir = "./data"
 
-const dbFile = "./users.db"
-
 func main() {
-	db, err := sql.Open("sqltes3", dbFile)
 	for {
 		fmt.Println("\n1. 註冊新用戶")
 		fmt.Println("2. 驗證 TOTP")
