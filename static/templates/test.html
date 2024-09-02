@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User test site</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/js/all.min.js" integrity="sha512-uKQ39gEGiyUJl4AI6L+ekBdGKpGw4xJ55+xyJG7YFlJokPNYegn9KwQ3P8A7aFQAUtUsAQHep+d/lrGqrbPIDQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.1/font/bootstrap-icons.min.css" integrity="sha512-oAvZuuYVzkcTc2dH5z1ZJup5OmSQ000qlfRvuoTTiyTBjwX1faoyearj8KdMq0LgsBTHMrRuMek7s+CxF8yE+w==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js" integrity="sha512-v2CJ7UaYy4JwqLDIrZUI/4hqeoQieOmAZNXBeQyjo21dadnwR+8ZaIJVT8EE2iyI61OV8e6M8PP2/4hpQINQ/g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="https://unpkg.com/bootstrap-table@1.22.1/dist/bootstrap-table.min.css">
+    <script src="https://unpkg.com/bootstrap-table@1.22.1/dist/bootstrap-table.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+  </head>
+  <body class="bg-light">
+    <div class="container mt-5">
+        <div class="row">
+            <div class="col-md-6 offset-md-3">
+                <div class="card">
+                    <div class="card-body">
+                    <h3 class="text-center mb-4">User Test</h3>
+
+                        <div class="form-group">
+                            <label for="token" class="mb-3">User name: </label>
+                            <input id="totpName" name="token" class="form-control" value="Peter">
+                            <button id="generateTOTP" class="btn btn-secondary btn-block mb-2 mt-3" onclick="generateTOTP()">Generate TOTP QR code</button>
+                        </div>
+
+                        <div id="qrCodeModal" class="card" style="display:block; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background-color:white; padding:20px; border:1px solid #ccc; box-shadow:0px 0px 10px rgba(0, 0, 0, 0.1); z-index:1000; width: 300px; height: 400px; overflow:auto;">
+                            <h5 style="text-align: center;">Scan this QR Code</h5>
+                            <img id="qrCodeImage" src="https://cdn-icons-png.flaticon.com/512/8902/8902949.png" alt="QR Code" style="display:block; margin:0 auto; max-width: 100%; height: auto;">
+                            <button onclick="closeModal()" class="btn btn-secondary btn-block mt-3">Close</button>
+                        </div>
+                        
+                        <!-- 背景遮罩 -->
+                        <div id="modalBackdrop" style="display:block; position:fixed; top:0; left:0; width:100%; height:100%; background-color:rgba(0,0,0,0.5); z-index:999;"></div>
+                        
+                        
+
+                        <div class="form-group">
+                            <label for="token" class="mb-3">User Token: </label>
+                            <input id="token" name="token" class="form-control" >
+
+                            <button id="enroll" class="btn btn-secondary btn-block mb-2 mt-3" onclick="doWebAuthnRegister()">Enroll Passkey</button>
+                        </div>
+
+                        <hr>
+
+                        <div class="form-group">
+                            <label for="tx">Transaction</label>
+                            <input id="tx" name="tx" class="form-control">
+
+                            <button id="authenticate" class="btn btn-secondary btn-block mb-2 mt-3" onclick="doWebAuthnAuth()">Authenticate with Passkey</button>
+
+                            <label for="newToken">Verifying-Only Token: </label>
+                            <input id="newToken" name="newToken" class="form-control">
+                        </div>
+
+                        <hr>
+                      <!--
+                      <div class="form-group">
+                        <label for="tx">Client ID</label>
+                        <input id="clientId" name="clientId" class="form-control">
+
+                        <label for="clientSecret">Client Secret</label>
+                        <input id="clientSecret" name="form-control" class="form-control">
+
+                        <button id="verify" class="btn btn-secondary btn-block mb-2 mt-3" onclick="verify()">Verify User Token</button>
+                      </div>
+                      -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let generateTOTP = async function() {
+            console.log("Username: ", $("#totpName").val())
+            let req = await (await fetch("/api/totp/generate", {
+                method: "POST",
+                body: JSON.stringify({
+                    "name": $("#totpName").val(),
+                })
+            })).json()
+            if (req.data === "") {
+                sa("error", req.error)
+                return
+            } else{
+                sa("success", "Generate TOTP QR code successfully.")    
+                document.getElementById("qrCodeImage").src = req.message;
+                document.getElementById("qrCodeModal").style.display = "block";
+                document.getElementById("modalBackdrop").style.display = "block";
+                return
+            }
+            
+        }
+        function closeModal() {
+            document.getElementById("qrCodeModal").style.display = "none";
+            document.getElementById("modalBackdrop").style.display = "none";
+        }
+
+        let verify = async function() {
+            fetch("/api/webauthn/token/verify", {
+            method: "POST",
+            headers: {
+                "Authorization": "Basic " + btoa($("#clientId").val() + ":" + $("#clientSecret").val()),
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                token: $("#newToken").val(),
+            })
+            }).then(res => res.json()).then((res) => {
+            alert(JSON.stringify(res))
+            })
+        }
+        // 登入
+        let doWebAuthnAuth = async function() {
+            let req = await (await fetch("/api/webauthn/{{ .Key }}/authentication/initialize", {
+            method: "POST",
+            body: JSON.stringify({
+                "transaction": $("#tx").val(),
+            }),
+            headers: {
+                "Content-Type": "application/json"
+            }
+            })).json()
+            req.publicKey.challenge = bufferDecode(req.publicKey.challenge)
+            let resp = await navigator.credentials.get(req)
+            req = await (await fetch("/api/webauthn/{{ .Key }}/authentication/finalize", {
+            method: "POST",
+            body: JSON.stringify(unwrapPublicKeyCredential(resp)),
+            headers: {
+                "Content-Type": "application/json"
+            }
+            })).json()
+            if (req.data === "") {
+            sa("error", req.error)
+            return
+            }
+            sa("success", "Successfully authenticated")
+            $("#newToken").val(req.data)
+        }
+        // 註冊
+        let doWebAuthnRegister = async function() {
+            if ($("token").val() === "") {
+            sa("error", "no given user's token")
+            }
+            let res = await (await fetch("/api/webauthn/{{ .Key }}/registration/initialize", {
+            method: "POST",
+            headers: {
+                "Authorization": "Bearer " + $("#token").val(),
+            }
+            })).json();
+            if (res.hasOwnProperty("success") && !res.success) {
+            sa("error", res.error)
+            return;
+            }
+            console.log(res)
+            res.publicKey.challenge = bufferDecode(res.publicKey.challenge);
+            res.publicKey.user.id = bufferDecode(res.publicKey.user.id);
+            if (res.publicKey.excludeCredentials) {
+            for (var i = 0; i < res.publicKey.excludeCredentials.length; i++) {
+                res.publicKey.excludeCredentials[i].id = bufferDecode(res.publicKey.excludeCredentials[i].id);
+            }
+            }
+            let credential = await navigator.credentials.create(res);
+            res = await (await fetch("/api/webauthn/{{ .Key }}/registration/finalize", {
+            method: "POST",
+            headers: {
+                "Authorization": "Bearer " + $("#token").val(),
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(unwrapPublicKeyCredential(credential))
+            })).json();
+            if (res.success) {
+            sa("success", "Passkey enrolled successfully")
+            return
+            }
+            sa("error", res.error)
+        }
+
+        function bufferDecode(value) {
+            let str = value.replace(/-/g, '+').replace(/_/g, '/');
+            while (str.length % 4 !== 0) {
+            str += '=';
+            }
+            return Uint8Array.from(atob(str), c => c.charCodeAt(0));
+        }
+
+        function unwrapPublicKeyCredential(cred) {
+            let r = {
+            response: {}
+            };
+            if ('id' in cred) r.id = cred.id
+            if ('type' in cred) r.type = cred.type;
+            if ('rawId' in cred) r.rawId = binToStr(cred.rawId);
+            if ('response' in cred) {
+            // Used in registration
+            if ('clientDataJSON' in cred.response) r.response.clientDataJSON = binToStr(cred.response.clientDataJSON);
+            if ('attestationObject' in cred.response) r.response.attestationObject = binToStr(cred.response.attestationObject);
+            // Used in authentication
+            if ('authenticatorData' in cred.response) r.response.authenticatorData = binToStr(cred.response.authenticatorData);
+            if ('signature' in cred.response) r.response.signature = binToStr(cred.response.signature);
+            if ('userHandle' in cred.response) r.response.userHandle = binToStr(cred.response.userHandle);
+            }
+            return r;
+        }
+
+        function strToBin(str) {
+            return Uint8Array.from(atob(str), function(c) {
+            return c.charCodeAt(0);
+            });
+        }
+
+        function binToStr(bin) {
+            return btoa(new Uint8Array(bin).reduce(function(s, byte) {
+            return s + String.fromCharCode(byte);
+            }, '')).replace(/\+/g, '-').replace(/\//g, '_');
+        }
+
+        function parseClientDataJSON(clientDataJSON) {
+            return JSON.parse(atob(binToStr(r.response.clientDataJSON)));
+        }
+        // See CBOR.io or https://github.com/paroga/cbor-jsa
+        function parseAttestationObject(attestationObject) {
+            return CBOR.decode(attestationObject);
+        }
+
+        function sa(type, msg, detail) {
+        return Swal.fire({
+          title: msg,
+          text: detail,
+          icon: type
+        }).then((res) => {
+          $("#table").bootstrapTable('refresh')
+        });
+      }
+    </script>
+  </body>
+</html>

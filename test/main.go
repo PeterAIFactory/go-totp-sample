@@ -1,72 +1,137 @@
 package main
 
 import (
-	"bufio"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"log"
 	"os"
-	"strconv"
-	"strings"
+	"path/filepath"
+
+	"github.com/pquerna/otp/totp"
+	"github.com/skip2/go-qrcode"
 )
 
-func getInput(prompt string, r *bufio.Reader) (string, error) {
-	fmt.Print(prompt)
-	input, err := r.ReadString('\n')
-
-	return strings.TrimSpace(input), err
+type User struct {
+	Username string `json:"username"`
+	Secret   string `json:"secret"`
 }
 
-func createBill() bill {
-	reader := bufio.NewReader(os.Stdin)
-
-	name, _ := getInput("Create a new bill name: ", reader)
-
-	b := newBill(name)
-	fmt.Println("Create the bill - ", b.name)
-
-	return b
-}
-
-func promptOptions(b *bill) {
-	reader := bufio.NewReader((os.Stdin))
-
-	opt, _ := getInput("Choose option (a - add item, s - save bill, t -add tips): ", reader)
-	switch opt {
-	case "a":
-		name, _ := getInput("Enter the name of item: ", reader)
-		price, _ := getInput("Enter the price of item: ", reader)
-		priceFloat, err := strconv.ParseFloat(price, 64)
-		if err != nil {
-			fmt.Println("The price must be a number")
-		} else {
-			b.addItem(name, priceFloat)
-			fmt.Printf("You add %v to the bill.\n", name)
-		}
-		promptOptions(b)
-	case "s":
-		fmt.Println("You save the bill.")
-		fs := b.format()
-		fmt.Println(fs)
-	case "t":
-		tips, _ := getInput("Set the tips: ", reader)
-		tipsfloats, err := strconv.ParseFloat(tips, 64)
-		if err != nil {
-			fmt.Println("The tip must be a number")
-		} else {
-			b.updateTip(tipsfloats)
-			fmt.Printf("You set the tips : %.02f\n", tipsfloats)
-		}
-		promptOptions(b)
-	default:
-		fmt.Println("invalid option...")
-		promptOptions(b)
-	}
-
-}
+const dataDir = ".test/data"
 
 func main() {
-	mybill := createBill()
+	for {
+		fmt.Println("\n1. 註冊新用戶")
+		fmt.Println("2. 驗證 TOTP")
+		fmt.Println("3. 退出")
+		fmt.Print("請選擇操作: ")
 
-	promptOptions(mybill)
+		var choice int
+		fmt.Scanln(&choice)
 
-	//fmt.Println(mybill)
+		switch choice {
+		case 1:
+			registerUser()
+		case 2:
+			validateTOTP()
+		case 3:
+			fmt.Println("再見！")
+			return
+		default:
+			fmt.Println("無效的選擇，請重試。")
+		}
+	}
+}
+
+func registerUser() {
+	var username string
+	fmt.Print("請輸入用戶名: ")
+	fmt.Scanln(&username)
+
+	key, err := totp.Generate(totp.GenerateOpts{
+		Issuer:      "YourApp",
+		AccountName: username,
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	user := User{
+		Username: username,
+		Secret:   key.Secret(),
+	}
+
+	saveUser(user)
+
+	// 生成 QR 碼
+	qrCode, err := qrcode.New(key.URL(), qrcode.Medium)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	qrFilename := filepath.Join(dataDir, username+"_qr.png")
+	err = qrCode.WriteFile(256, qrFilename)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Printf("用戶 %s 已註冊。QR 碼已保存為 %s\n", username, qrFilename)
+	fmt.Printf("密鑰: %s\n", key.Secret())
+}
+
+func validateTOTP() {
+	var username string
+	fmt.Print("請輸入用戶名: ")
+	fmt.Scanln(&username)
+
+	user, err := loadUser(username)
+	if err != nil {
+		fmt.Println("用戶不存在")
+		return
+	}
+
+	var code string
+	fmt.Print("請輸入 6 位 TOTP 碼: ")
+	fmt.Scanln(&code)
+
+	valid := totp.Validate(code, user.Secret)
+	if valid {
+		fmt.Println("TOTP 驗證成功！")
+	} else {
+		fmt.Println("TOTP 驗證失敗。")
+	}
+}
+
+func saveUser(user User) {
+	data, err := json.Marshal(user)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = os.MkdirAll(dataDir, 0755)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	filename := filepath.Join(dataDir, user.Username+".json")
+	err = ioutil.WriteFile(filename, data, 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func loadUser(username string) (User, error) {
+	filename := filepath.Join(dataDir, username+".json")
+	data, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return User{}, err
+	}
+
+	var user User
+	err = json.Unmarshal(data, &user)
+	if err != nil {
+		return User{}, err
+	}
+
+	return user, nil
 }
