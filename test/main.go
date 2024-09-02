@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -114,7 +113,7 @@ func saveUser(user User) {
 	}
 
 	filename := filepath.Join(dataDir, user.Username+".json")
-	err = ioutil.WriteFile(filename, data, 0644)
+	err = os.WriteFile(filename, data, 0644)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -122,7 +121,7 @@ func saveUser(user User) {
 
 func loadUser(username string) (User, error) {
 	filename := filepath.Join(dataDir, username+".json")
-	data, err := ioutil.ReadFile(filename)
+	data, err := os.ReadFile(filename)
 	if err != nil {
 		return User{}, err
 	}

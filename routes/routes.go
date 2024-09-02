@@ -18,9 +18,9 @@ func InitRoutes(p *gin.Engine) {
 
 	p.GET("/login", getTenantTestPage)
 
-	p.POST("/api/totp/generate", generateTOTP)
+	p.POST("/api/totp/registration", registerTOTP)
 
-	p.POST("/api/totp/verify", validateTOTP)
+	p.POST("/api/totp/validation", validateTOTP)
 
 	// load templates
 	p.LoadHTMLGlob("static/templates/*.html")

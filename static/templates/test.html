@@ -20,25 +20,32 @@
             <div class="col-md-6 offset-md-3">
                 <div class="card">
                     <div class="card-body">
-                    <h3 class="text-center mb-4">User Test</h3>
+                    <h3 class="text-center mb-4">Client Testing</h3>
 
                         <div class="form-group">
                             <label for="token" class="mb-3">User name: </label>
-                            <input id="totpName" name="token" class="form-control" value="Peter">
+                            <input id="totpName" name="token" class="form-control" value="John">
                             <button id="generateTOTP" class="btn btn-secondary btn-block mb-2 mt-3" onclick="generateTOTP()">Generate TOTP QR code</button>
                         </div>
 
-                        <div id="qrCodeModal" class="card" style="display:block; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background-color:white; padding:20px; border:1px solid #ccc; box-shadow:0px 0px 10px rgba(0, 0, 0, 0.1); z-index:1000; width: 300px; height: 400px; overflow:auto;">
+                        <div id="qrCodeModal" class="card" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background-color:white; padding:20px; border:1px solid #ccc; box-shadow:0px 0px 10px rgba(0, 0, 0, 0.1); z-index:1000; width: 300px; height: 400px; overflow:auto;">
                             <h5 style="text-align: center;">Scan this QR Code</h5>
                             <img id="qrCodeImage" src="https://cdn-icons-png.flaticon.com/512/8902/8902949.png" alt="QR Code" style="display:block; margin:0 auto; max-width: 100%; height: auto;">
                             <button onclick="closeModal()" class="btn btn-secondary btn-block mt-3">Close</button>
                         </div>
                         
                         <!-- 背景遮罩 -->
-                        <div id="modalBackdrop" style="display:block; position:fixed; top:0; left:0; width:100%; height:100%; background-color:rgba(0,0,0,0.5); z-index:999;"></div>
+                        <div id="modalBackdrop" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background-color:rgba(0,0,0,0.5); z-index:999;"></div>
                         
-                        
+                        <div class="form-group">
+                            <label for="token" class="mb-3">TOTP Key(6 Digit): </label>
+                            <input id="totpKey" name="token" class="form-control" >
 
+                            <button id="validateTOTP" class="btn btn-secondary btn-block mb-2 mt-3" onclick="validateTOTP()">Validate TOTP Key</button>
+                        </div>
+
+                        <hr>
+                        <!--
                         <div class="form-group">
                             <label for="token" class="mb-3">User Token: </label>
                             <input id="token" name="token" class="form-control" >
@@ -47,7 +54,7 @@
                         </div>
 
                         <hr>
-
+                        
                         <div class="form-group">
                             <label for="tx">Transaction</label>
                             <input id="tx" name="tx" class="form-control">
@@ -59,7 +66,7 @@
                         </div>
 
                         <hr>
-                      <!--
+                      
                       <div class="form-group">
                         <label for="tx">Client ID</label>
                         <input id="clientId" name="clientId" class="form-control">
@@ -77,16 +84,35 @@
     </div>
 
     <script>
+            let validateTOTP = async function() {
+            console.log("Username: ", $("#totpName").val())
+            let req = await (await fetch("/api/totp/validation", {
+                method: "POST",
+                body: JSON.stringify({
+                    "username": $("#totpName").val(),
+                    "secret": $("#totpKey").val(),
+                })
+            })).json()
+            if (req.success === false) {
+                sa("error", "Error: " + req.message)
+                return
+            } else{
+                sa("success", "Validation successful.")    
+                return
+            }
+            
+        }
+
         let generateTOTP = async function() {
             console.log("Username: ", $("#totpName").val())
-            let req = await (await fetch("/api/totp/generate", {
+            let req = await (await fetch("/api/totp/registration", {
                 method: "POST",
                 body: JSON.stringify({
                     "name": $("#totpName").val(),
                 })
             })).json()
-            if (req.data === "") {
-                sa("error", req.error)
+            if (req.success === false) {
+                sa("error", "Error: " + req.message)
                 return
             } else{
                 sa("success", "Generate TOTP QR code successfully.")    
